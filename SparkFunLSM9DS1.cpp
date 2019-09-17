@@ -24,14 +24,7 @@ Distributed as-is; no warranty is given.
 #include "SparkFunLSM9DS1.h"
 #include "LSM9DS1_Registers.h"
 #include "LSM9DS1_Types.h"
-#include <Wire.h> // Wire library is used for I2C
-#include <SPI.h>  // SPI library is used for...SPI.
-
-#if defined(ARDUINO) && ARDUINO >= 100
-  #include "Arduino.h"
-#else
-  #include "WProgram.h"
-#endif
+#include "i2c.h"
 
 // Sensor Sensitivity Constants
 // Values set according to the typical specifications provided in
@@ -166,8 +159,6 @@ uint16_t LSM9DS1::begin()
 	// Now, initialize our hardware interface.
 	if (settings.device.commInterface == IMU_MODE_I2C)	// If we're using I2C
 		initI2C();	// Initialize I2C
-	else if (settings.device.commInterface == IMU_MODE_SPI) 	// else, if we're using SPI
-		initSPI();	// Initialize SPI
 		
 	// To verify communication, we can read from the WHO_AM_I register of
 	// each device. Store those in a variable so we can return them.
@@ -1031,8 +1022,7 @@ void LSM9DS1::xgWriteByte(uint8_t subAddress, uint8_t data)
 	// gyro-specific I2C address or SPI CS pin.
 	if (settings.device.commInterface == IMU_MODE_I2C)
 		I2CwriteByte(_xgAddress, subAddress, data);
-	else if (settings.device.commInterface == IMU_MODE_SPI)
-		SPIwriteByte(_xgAddress, subAddress, data);
+	
 }
 
 void LSM9DS1::mWriteByte(uint8_t subAddress, uint8_t data)
@@ -1041,8 +1031,6 @@ void LSM9DS1::mWriteByte(uint8_t subAddress, uint8_t data)
 	// accelerometer-specific I2C address or SPI CS pin.
 	if (settings.device.commInterface == IMU_MODE_I2C)
 		return I2CwriteByte(_mAddress, subAddress, data);
-	else if (settings.device.commInterface == IMU_MODE_SPI)
-		return SPIwriteByte(_mAddress, subAddress, data);
 }
 
 uint8_t LSM9DS1::xgReadByte(uint8_t subAddress)
@@ -1051,8 +1039,7 @@ uint8_t LSM9DS1::xgReadByte(uint8_t subAddress)
 	// gyro-specific I2C address or SPI CS pin.
 	if (settings.device.commInterface == IMU_MODE_I2C)
 		return I2CreadByte(_xgAddress, subAddress);
-	else if (settings.device.commInterface == IMU_MODE_SPI)
-		return SPIreadByte(_xgAddress, subAddress);
+
 	return -1;
 }
 
@@ -1062,8 +1049,7 @@ uint8_t LSM9DS1::xgReadBytes(uint8_t subAddress, uint8_t * dest, uint8_t count)
 	// gyro-specific I2C address or SPI CS pin.
 	if (settings.device.commInterface == IMU_MODE_I2C)
 		return I2CreadBytes(_xgAddress, subAddress, dest, count);
-	else if (settings.device.commInterface == IMU_MODE_SPI)
-		return SPIreadBytes(_xgAddress, subAddress, dest, count);
+	
 	return -1;
 }
 
@@ -1073,8 +1059,7 @@ uint8_t LSM9DS1::mReadByte(uint8_t subAddress)
 	// accelerometer-specific I2C address or SPI CS pin.
 	if (settings.device.commInterface == IMU_MODE_I2C)
 		return I2CreadByte(_mAddress, subAddress);
-	else if (settings.device.commInterface == IMU_MODE_SPI)
-		return SPIreadByte(_mAddress, subAddress);
+
 	return -1;
 }
 
@@ -1084,113 +1069,52 @@ uint8_t LSM9DS1::mReadBytes(uint8_t subAddress, uint8_t * dest, uint8_t count)
 	// accelerometer-specific I2C address or SPI CS pin.
 	if (settings.device.commInterface == IMU_MODE_I2C)
 		return I2CreadBytes(_mAddress, subAddress, dest, count);
-	else if (settings.device.commInterface == IMU_MODE_SPI)
-		return SPIreadBytes(_mAddress, subAddress, dest, count);
 	return -1;
-}
-
-void LSM9DS1::initSPI()
-{
-	pinMode(_xgAddress, OUTPUT);
-	digitalWrite(_xgAddress, HIGH);
-	pinMode(_mAddress, OUTPUT);
-	digitalWrite(_mAddress, HIGH);
-	
-	SPI.begin();
-	// Maximum SPI frequency is 10MHz, could divide by 2 here:
-	SPI.setClockDivider(SPI_CLOCK_DIV2);
-	// Data is read and written MSb first.
-	SPI.setBitOrder(MSBFIRST);
-	// Data is captured on rising edge of clock (CPHA = 0)
-	// Base value of the clock is HIGH (CPOL = 1)
-	SPI.setDataMode(SPI_MODE0);
-}
-
-void LSM9DS1::SPIwriteByte(uint8_t csPin, uint8_t subAddress, uint8_t data)
-{
-	digitalWrite(csPin, LOW); // Initiate communication
-	
-	// If write, bit 0 (MSB) should be 0
-	// If single write, bit 1 should be 0
-	SPI.transfer(subAddress & 0x3F); // Send Address
-	SPI.transfer(data); // Send data
-	
-	digitalWrite(csPin, HIGH); // Close communication
-}
-
-uint8_t LSM9DS1::SPIreadByte(uint8_t csPin, uint8_t subAddress)
-{
-	uint8_t temp;
-	// Use the multiple read function to read 1 byte. 
-	// Value is returned to `temp`.
-	SPIreadBytes(csPin, subAddress, &temp, 1);
-	return temp;
-}
-
-uint8_t LSM9DS1::SPIreadBytes(uint8_t csPin, uint8_t subAddress,
-							uint8_t * dest, uint8_t count)
-{
-	// To indicate a read, set bit 0 (msb) of first byte to 1
-	uint8_t rAddress = 0x80 | (subAddress & 0x3F);
-	// Mag SPI port is different. If we're reading multiple bytes, 
-	// set bit 1 to 1. The remaining six bytes are the address to be read
-	if ((csPin == _mAddress) && count > 1)
-		rAddress |= 0x40;
-	
-	digitalWrite(csPin, LOW); // Initiate communication
-	SPI.transfer(rAddress);
-	for (int i=0; i<count; i++)
-	{
-		dest[i] = SPI.transfer(0x00); // Read into destination array
-	}
-	digitalWrite(csPin, HIGH); // Close communication
-	
-	return count;
 }
 
 void LSM9DS1::initI2C()
 {
-	Wire.begin();	// Initialize I2C library
+	//Wire.begin();	// Initialize I2C library
 }
 
-// Wire.h read and write protocols
+//// Wire.h read and write protocols
 void LSM9DS1::I2CwriteByte(uint8_t address, uint8_t subAddress, uint8_t data)
 {
-	Wire.beginTransmission(address);  // Initialize the Tx buffer
-	Wire.write(subAddress);           // Put slave register address in Tx buffer
-	Wire.write(data);                 // Put data in Tx buffer
-	Wire.endTransmission();           // Send the Tx buffer
+	//Wire.beginTransmission(address);  // Initialize the Tx buffer
+	//Wire.write(subAddress);           // Put slave register address in Tx buffer
+	//Wire.write(data);                 // Put data in Tx buffer
+	//Wire.endTransmission();           // Send the Tx buffer
 }
 
 uint8_t LSM9DS1::I2CreadByte(uint8_t address, uint8_t subAddress)
 {
 	uint8_t data; // `data` will store the register data	
 	
-	Wire.beginTransmission(address);         // Initialize the Tx buffer
-	Wire.write(subAddress);	                 // Put slave register address in Tx buffer
-	Wire.endTransmission(false);             // Send the Tx buffer, but send a restart to keep connection alive
-	Wire.requestFrom(address, (uint8_t) 1);  // Read one byte from slave register address 
+	//Wire.beginTransmission(address);         // Initialize the Tx buffer
+	//Wire.write(subAddress);	                 // Put slave register address in Tx buffer
+	//Wire.endTransmission(false);             // Send the Tx buffer, but send a restart to keep connection alive
+	//Wire.requestFrom(address, (uint8_t) 1);  // Read one byte from slave register address 
 	
-	data = Wire.read();                      // Fill Rx buffer with result
+	//data = Wire.read();                      // Fill Rx buffer with result
 	return data;                             // Return data read from slave register
 }
 
 uint8_t LSM9DS1::I2CreadBytes(uint8_t address, uint8_t subAddress, uint8_t * dest, uint8_t count)
 {
-	byte retVal;
-	Wire.beginTransmission(address);      // Initialize the Tx buffer
+	uint8_t retVal;
+	//Wire.beginTransmission(address);      // Initialize the Tx buffer
 	// Next send the register to be read. OR with 0x80 to indicate multi-read.
-	Wire.write(subAddress | 0x80);        // Put slave register address in Tx buffer
-	retVal = Wire.endTransmission(false); // Send Tx buffer, send a restart to keep connection alive
+	//Wire.write(subAddress | 0x80);        // Put slave register address in Tx buffer
+	//retVal = Wire.endTransmission(false); // Send Tx buffer, send a restart to keep connection alive
 	if (retVal != 0) // endTransmission should return 0 on success
 		return 0;
 	
-	retVal = Wire.requestFrom(address, count);  // Read bytes from slave register address 
+	//retVal = Wire.requestFrom(address, count);  // Read bytes from slave register address 
 	if (retVal != count)
 		return 0;
 	
 	for (int i=0; i<count;)
-		dest[i++] = Wire.read();
+		//dest[i++] = Wire.read();
 	
 	return count;
 }
