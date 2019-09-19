@@ -155,5 +155,9 @@ read_status = k_i2c_read(bus, slave_addr, buffer, read_len);
  */
 KI2CStatus k_i2c_read(int i2c, uint16_t addr, uint8_t *ptr, int len);
 
+//@JamesDunne JamesDunne/i2c.c
+KI2CStatus i2c_write(int i2c, uint16_t slave_addr, uint8_t reg, uint8_t data);
+KI2CStatus i2c_read(int i2c, uint16_t slave_addr, uint8_t reg, uint8_t *result, uint8_t count);
+
 #endif
 /* @} */

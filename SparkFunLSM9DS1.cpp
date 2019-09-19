@@ -20,11 +20,15 @@ local, and you've found our code helpful, please buy us a round!
 
 Distributed as-is; no warranty is given.
 ******************************************************************************/
+extern "C"{
+	#include "i2c.h"	
+}
+
 
 #include "SparkFunLSM9DS1.h"
 #include "LSM9DS1_Registers.h"
 #include "LSM9DS1_Types.h"
-#include "i2c.h"
+
 
 // Sensor Sensitivity Constants
 // Values set according to the typical specifications provided in
@@ -1048,13 +1052,15 @@ uint8_t LSM9DS1::xgReadBytes(uint8_t subAddress, uint8_t * dest, uint8_t count)
 	// Whether we're using I2C or SPI, read multiple bytes using the
 	// gyro-specific I2C address or SPI CS pin.
 	if (settings.device.commInterface == IMU_MODE_I2C)
+		//i2c_read(bus, _mAddress, subAddress, dest, count);
 		return I2CreadBytes(_xgAddress, subAddress, dest, count);
 	
 	return -1;
 }
 
 uint8_t LSM9DS1::mReadByte(uint8_t subAddress)
-{
+{		
+	uint8_t * buffer;
 	// Whether we're using I2C or SPI, read a byte using the
 	// accelerometer-specific I2C address or SPI CS pin.
 	if (settings.device.commInterface == IMU_MODE_I2C)
@@ -1072,9 +1078,20 @@ uint8_t LSM9DS1::mReadBytes(uint8_t subAddress, uint8_t * dest, uint8_t count)
 	return -1;
 }
 
-void LSM9DS1::initI2C()
+int8_t LSM9DS1::initI2C()
 {
 	//Wire.begin();	// Initialize I2C library
+	KI2CStatus status;
+
+	// Initialize our file descriptor storage variable
+	bus = 0;
+	// Open a connection to I2C bus 2
+	status = k_i2c_init("/dev/i2c-2", &bus);
+	if (status != I2C_OK)
+	{
+		return -1;
+	}
+	printf("LSM9DS1::initI2C() Successful\n");
 }
 
 //// Wire.h read and write protocols
