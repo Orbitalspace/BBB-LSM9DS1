@@ -52,6 +52,9 @@ public:
 	float gBias[3], aBias[3], mBias[3];
 	int16_t gBiasRaw[3], aBiasRaw[3], mBiasRaw[3];
 	
+	//Kubos vars
+	int bus;
+
 	// LSM9DS1 -- LSM9DS1 class constructor
 	// The constructor will set up a handful of private variables, and set the
 	// communication mode as well.
@@ -486,7 +489,7 @@ protected:
 	///////////////////
 	// initI2C() -- Initialize the I2C hardware.
 	// This function will setup all I2C pins and related hardware.
-	void initI2C();
+	int8_t initI2C();
 	
 	// I2CwriteByte() -- Write a byte out of I2C to a register in the device
 	// Input:

@@ -20,11 +20,14 @@ local, and you've found our code helpful, please buy us a round!
 
 Distributed as-is; no warranty is given.
 ******************************************************************************/
+extern "C"{
+	#include "i2c.h"	
+}
+
 
 #include "SparkFunLSM9DS1.h"
 #include "LSM9DS1_Registers.h"
 #include "LSM9DS1_Types.h"
-#include <Wire.h> // Wire library is used for I2C
 
 // Sensor Sensitivity Constants
 // Values set according to the typical specifications provided in
@@ -1048,13 +1051,15 @@ uint8_t LSM9DS1::xgReadBytes(uint8_t subAddress, uint8_t * dest, uint8_t count)
 	// Whether we're using I2C or SPI, read multiple bytes using the
 	// gyro-specific I2C address or SPI CS pin.
 	if (settings.device.commInterface == IMU_MODE_I2C)
+		//i2c_read(bus, _mAddress, subAddress, dest, count);
 		return I2CreadBytes(_xgAddress, subAddress, dest, count);
 	
 	return -1;
 }
 
 uint8_t LSM9DS1::mReadByte(uint8_t subAddress)
-{
+{		
+	uint8_t * buffer;
 	// Whether we're using I2C or SPI, read a byte using the
 	// accelerometer-specific I2C address or SPI CS pin.
 	if (settings.device.commInterface == IMU_MODE_I2C)
@@ -1072,49 +1077,60 @@ uint8_t LSM9DS1::mReadBytes(uint8_t subAddress, uint8_t * dest, uint8_t count)
 	return -1;
 }
 
-void LSM9DS1::initI2C()
+int8_t LSM9DS1::initI2C()
 {
-	Wire.begin();	// Initialize I2C library
+	//Wire.begin();	// Initialize I2C library
+	KI2CStatus status;
+
+	// Initialize our file descriptor storage variable
+	bus = 0;
+	// Open a connection to I2C bus 2
+	status = k_i2c_init("/dev/i2c-2", &bus);
+	if (status != I2C_OK)
+	{
+		return -1;
+	}
+	printf("LSM9DS1::initI2C() Successful\n");
 }
 
-// Wire.h read and write protocols
+//// Wire.h read and write protocols
 void LSM9DS1::I2CwriteByte(uint8_t address, uint8_t subAddress, uint8_t data)
 {
-	Wire.beginTransmission(address);  // Initialize the Tx buffer
-	Wire.write(subAddress);           // Put slave register address in Tx buffer
-	Wire.write(data);                 // Put data in Tx buffer
-	Wire.endTransmission();           // Send the Tx buffer
+	//Wire.beginTransmission(address);  // Initialize the Tx buffer
+	//Wire.write(subAddress);           // Put slave register address in Tx buffer
+	//Wire.write(data);                 // Put data in Tx buffer
+	//Wire.endTransmission();           // Send the Tx buffer
 }
 
 uint8_t LSM9DS1::I2CreadByte(uint8_t address, uint8_t subAddress)
 {
 	uint8_t data; // `data` will store the register data	
 	
-	Wire.beginTransmission(address);         // Initialize the Tx buffer
-	Wire.write(subAddress);	                 // Put slave register address in Tx buffer
-	Wire.endTransmission(false);             // Send the Tx buffer, but send a restart to keep connection alive
-	Wire.requestFrom(address, (uint8_t) 1);  // Read one byte from slave register address 
+	//Wire.beginTransmission(address);         // Initialize the Tx buffer
+	//Wire.write(subAddress);	                 // Put slave register address in Tx buffer
+	//Wire.endTransmission(false);             // Send the Tx buffer, but send a restart to keep connection alive
+	//Wire.requestFrom(address, (uint8_t) 1);  // Read one byte from slave register address 
 	
-	data = Wire.read();                      // Fill Rx buffer with result
+	//data = Wire.read();                      // Fill Rx buffer with result
 	return data;                             // Return data read from slave register
 }
 
 uint8_t LSM9DS1::I2CreadBytes(uint8_t address, uint8_t subAddress, uint8_t * dest, uint8_t count)
 {
-	byte retVal;
-	Wire.beginTransmission(address);      // Initialize the Tx buffer
+	uint8_t retVal;
+	//Wire.beginTransmission(address);      // Initialize the Tx buffer
 	// Next send the register to be read. OR with 0x80 to indicate multi-read.
-	Wire.write(subAddress | 0x80);        // Put slave register address in Tx buffer
-	retVal = Wire.endTransmission(false); // Send Tx buffer, send a restart to keep connection alive
+	//Wire.write(subAddress | 0x80);        // Put slave register address in Tx buffer
+	//retVal = Wire.endTransmission(false); // Send Tx buffer, send a restart to keep connection alive
 	if (retVal != 0) // endTransmission should return 0 on success
 		return 0;
 	
-	retVal = Wire.requestFrom(address, count);  // Read bytes from slave register address 
+	//retVal = Wire.requestFrom(address, count);  // Read bytes from slave register address 
 	if (retVal != count)
 		return 0;
 	
 	for (int i=0; i<count;)
-		dest[i++] = Wire.read();
+		//dest[i++] = Wire.read();
 	
 	return count;
 }
